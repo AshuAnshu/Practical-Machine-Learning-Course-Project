@@ -1,0 +1,111 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Ashutosh"
+date: "22/03/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+#PRACTICAL MACHINE LEARNING ASSIGNMENT
+
+##Background 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks.One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+##Data 
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+##"Loading the Data" 
+
+```{r} 
+library(caret) 
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(RGtk2)
+library(rattle)
+library(randomForest)
+raw_training_data<-read.csv("training.csv") 
+raw_testing_data<-read.csv("testing.csv") 
+dim(raw_training_data) 
+dim(raw_testing_data) 
+```
+
+##Data cleansing and ordering 
+
+```{r} 
+non_zero<-nearZeroVar(raw_training_data)
+training_data<-raw_training_data[,-non_zero]
+testing_data<-raw_testing_data[,-non_zero]
+dim(training_data)
+dim(testing_data)
+```
+
+```{r} 
+na_value<-sapply(training_data, function(x) mean(is.na(x))) > 0.95
+training_data <-training_data[,na_value == FALSE]
+testing_data<-testing_data[,na_value == FALSE]
+dim(training_data)
+dim(testing_data) 
+```
+
+###Removing the first 7 non numeric variables from the data
+```{r} 
+training_data<-training_data[,8:59]
+testing_data<-testing_data[,8:59]
+dim(training_data)
+dim(testing_data) 
+colnames(training_data)
+colnames(testing_data)
+```
+
+##Separating the data into Testing and Training sets
+I will be partitioning our training_data into 2 different parts, one is the training set (consisiting 60% of the total data) and test set (consisting 40% of the total data) 
+
+```{r} 
+inTrain<-caret::createDataPartition(training_data$classe, p=0.6,list=FALSE) 
+train<-training_data[inTrain,]
+test<-training_data[-inTrain,]
+dim(train)
+dim(test)
+```
+
+##Decison Tree Model Prediction 
+
+```{r} 
+library(e1071)
+DT_modfit<-train(classe ~ ., data = train, method="rpart")
+DT_prediction <- predict(DT_modfit, test)
+confusionMatrix(DT_prediction, test$classe)
+rpart.plot(DT_modfit$finalModel, roundint=FALSE)
+```
+
+##Random Forest Model Prediction 
+
+```{r} 
+RF_modfit<-train(classe ~ ., data = train, method = "rf", ntree = 100)
+RF_prediction<-predict(RF_modfit, test)
+RF_pred_conf<-confusionMatrix(RF_prediction, test$classe)
+RF_pred_conf
+```
+```{r} 
+plot(RF_pred_conf$table, col = RF_pred_conf$byClass, 
+     main = paste("Random Forest - Accuracy Level =",
+                  round(RF_pred_conf$overall['Accuracy'], 4))) 
+```
+
+##Conclusion
+
+The Random Forest model has significantly more accuracy than decision tree model hence we will be selecting Random Forest model for final prediction from testing_data .
+
+```{r} 
+Final_RF_prediction <- predict(RF_modfit, testing_data )
+Final_RF_prediction
+```
+
